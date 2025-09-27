@@ -1,0 +1,25 @@
+{
+  "name": "thoirumclient",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@urql/core": "^3.1.1",
+    "apollo-boost": "^0.4.9",
+    "apollo-cache-inmemory": "^1.6.6",
+    "apollo-link-ws": "^1.0.20",
+    "bonjour": "^3.3.0",
+    "graphql-subscriptions-client": "^0.16.4",
+    "graphql-tag": "^2.12.6",
+    "graphql-ws": "^5.11.2",
+    "node-fetch": "^3.3.2",
+    "ws": "^8.11.0"
+  }
+}

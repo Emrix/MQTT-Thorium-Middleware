@@ -1,0 +1,25 @@
+{
+  "name": "panelcontrol",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "description": "A Node client to connect to a Thorium server and an MQTT Broker",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Matt Ricks (mricks1@alpinedistrict.org)",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "fs": "^0.0.1-security",
+    "graphql-request": "^7.1.0",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
