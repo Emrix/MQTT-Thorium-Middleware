@@ -1,12 +1,14 @@
 const gqlQueries = require("../GraphQL Queries");
 
 exports.findServers = () => {
+  console.log(`Searching for Thorium Servers`);
   const bonjour = require("bonjour")();
 
-  return new Promise(resolve => {
-    bonjour.find({ type: "http" }, newService);
-    setTimeout(() => { resolve(servers) }, 1000); //return after 1 second
+
+return new Promise(resolve => {
     const servers = [];
+    bonjour.find({ type: "http" }, newService);
+    setTimeout(() => { resolve(servers) }, 1000); 
     // While this code could be adapted to connect to multiple Thorium servers
     // we'll use it to connect to the first one.
     function newService(service) {
@@ -68,6 +70,7 @@ exports.connectToServer = (serverURI, subscriptionURI, _clientName, clientUpdate
 
   //Now connect as a client.
   this.mutate(gqlQueries.registerClient, mutation_params)
+  console.log(`Connected to Thorium Server: ${serverURI}`)
 
 
   ////Setting Up Subscriptions\\\\
@@ -119,7 +122,8 @@ mutation removeClient {
 exports.cancelSubscriptions = (subscriptionsList) => {
   // console.log("Cancelling subs",subscriptionsList)
   subscriptionsList.forEach((subscription) => {
-    subscription._cleanup._cleanup()
+    // subscription._cleanup._cleanup()
+    subscription.unsubscribe()
   })
   for (let x = 0; x < subscriptionsList.length; x++) {
     delete subscriptionsList[x]

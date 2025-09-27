@@ -7,6 +7,7 @@ let messageHandlers = {};
 
 // Connect to the MQTT broker
 exports.connect = (_brokerUrl) => {
+  console.log(`Connecting to MQTT Broker`);
   if (!mqttClient) {
     _brokerUrl = "mqtt://" + _brokerUrl;
     mqttClient = mqtt.connect(_brokerUrl);

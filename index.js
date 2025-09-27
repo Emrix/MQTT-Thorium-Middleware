@@ -12,6 +12,8 @@ let mqttSubscribedTopics = {};
 
 MqttClient.connect(process.env['PREFERRED_MQTT_BROKER']) //.then(listServers, (err) => console.log(err))
 
+
+
 /////////////////////////
 //Start Thorium Client//
 ///////////////////////
@@ -29,6 +31,7 @@ function listServers(servers) {
     if (preferredServer.length == 1) {
         // ThoriumClient.connectToServer(preferredServer[0].endpoint, preferredServer[0].subscription, process.env['STATION_NAME'], clientUpdate)
         connectToServer(preferredServer)
+        thoriumConnectionTimeoutTriesCount = 0; // reset after success
     } else {
         if (thoriumConnectionTimeoutTriesCount < 5) {
             thoriumConnectionTimeoutTriesCount++;
@@ -228,11 +231,11 @@ function systemsUpdate(data) { //Thorium to App Connections
 
 var stealthStatus = {}
 
+
 function stealthUpdate(data) {
     if (JSON.stringify(stealthStatus) != JSON.stringify(data)) {
-        stealthStatus = JSON.parse(JSON.stringify(data))
-        // console.log(system)
-        let publishTopicBase = `${process.env['BASE_MQTT_STRING']}system/${system.name}/`
+        stealthStatus = JSON.parse(JSON.stringify(data)).stealthFieldUpdate[0];
+        let publishTopicBase = `${process.env['BASE_MQTT_STRING']}system/${stealthStatus.displayName}/`;
         MqttClient.publishToTopic(publishTopicBase + "changeAlert", stealthStatus.changeAlert === null ? "" : stealthStatus.changeAlert.toString());
         MqttClient.publishToTopic(publishTopicBase + "activated", stealthStatus.activated === null ? "" : stealthStatus.activated.toString());
         MqttClient.publishToTopic(publishTopicBase + "charge", stealthStatus.charge === null ? "" : stealthStatus.charge.toString());
@@ -269,6 +272,7 @@ let restartThoriumClient = function() {
     simulatorStatus = {}
     systemsStatus = {}
     stealthStatus = {}
-
+    
+    MqttClient.resetHandlers();
     ThoriumClient.findServers().then(listServers, (err) => console.log(err))
 }
