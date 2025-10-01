@@ -1,26 +1,28 @@
 const gqlQueries = require("../GraphQL Queries");
+const logger = require('../logger');
 
 exports.findServers = () => {
-  console.log(`Searching for Thorium Servers`);
+  logger.info(`Searching for Thorium Servers`);
   const bonjour = require("bonjour")();
 
-
-return new Promise(resolve => {
+  return new Promise(resolve => {
     const servers = [];
     bonjour.find({ type: "http" }, newService);
-    setTimeout(() => { resolve(servers) }, 1000); 
+    setTimeout(() => { resolve(servers) }, 1000); // return after 1 second
+
     // While this code could be adapted to connect to multiple Thorium servers
     // we'll use it to connect to the first one.
     function newService(service) {
-      if (service.name.indexOf("Thorium") > -1 || service.type === "local") {
-        const isHttps = service.txt.https === "true";
+      if (!service) return;
+      if (service.name && (service.name.indexOf("Thorium") > -1 || service.type === "local")) {
+        const isHttps = service.txt && service.txt.https === "true";
         const ipregex = /[0-2]?[0-9]{1,2}\.[0-2]?[0-9]{1,2}\.[0-2]?[0-9]{1,2}\.[0-2]?[0-9]{1,2}/gi;
-        const address = service.addresses.find(a => ipregex.test(a));
-
+        const address = service.addresses && service.addresses.find(a => ipregex.test(a));
+        if (!address) return;
         const endpoint = `${printUrl(address, !isHttps, service.port)}/`;
         const subscription = `${printWs(address, !isHttps, service.port)}/`;
         servers.push({
-          name: service.host,
+          name: service.host || service.name,
           endpoint: endpoint,
           subscription: subscription,
         });
@@ -28,15 +30,11 @@ return new Promise(resolve => {
     }
 
     function printUrl(address, httpOnly, port) {
-      return `http${httpOnly ? "" : "s"}://${address}${
-        (port === 443 && !httpOnly) || (port === 80 && httpOnly) ? "" : `:${port}`
-      }`;
+      return `http${httpOnly ? "" : "s"}://${address}${(port === 443 && !httpOnly) || (port === 80 && httpOnly) ? "" : `:${port}`}`;
     }
 
     function printWs(address, httpOnly, port) {
-      return `ws${httpOnly ? "" : "s"}://${address}${
-        (port === 443 && !httpOnly) || (port === 80 && httpOnly) ? "" : `:${port}`
-      }`;
+      return `ws${httpOnly ? "" : "s"}://${address}${(port === 443 && !httpOnly) || (port === 80 && httpOnly) ? "" : `:${port}`}`;
     }
   });
 }
@@ -50,7 +48,6 @@ exports.connectToServer = (serverURI, subscriptionURI, _clientName, clientUpdate
     this.disconnect();
   }
 
-  //Setting up the query client
   clientName = _clientName;
   if (serverURI.charAt(serverURI.length - 1) == "/") {
     serverURI = serverURI += "graphql"
@@ -68,9 +65,8 @@ exports.connectToServer = (serverURI, subscriptionURI, _clientName, clientUpdate
     "cards": ["IOT"]
   }
 
-  //Now connect as a client.
+  // Register client
   this.mutate(gqlQueries.registerClient, mutation_params)
-  console.log(`Connected to Thorium Server: ${serverURI}`)
 
 
   ////Setting Up Subscriptions\\\\
@@ -78,18 +74,22 @@ exports.connectToServer = (serverURI, subscriptionURI, _clientName, clientUpdate
   var ApolloClient = require('apollo-boost').ApolloClient;
   var WebSocketLink = require('apollo-link-ws').WebSocketLink;
   var InMemoryCache = require('apollo-cache-inmemory').InMemoryCache;
+  var gql = require('graphql-tag');
 
-  serverURI = serverURI.replace(/^http/, 'ws');
+  // convert http -> ws
+  const wsUri = serverURI.replace(/^http/, 'ws');
 
   var link = new WebSocketLink({
-    uri: serverURI,
+    uri: wsUri,
     options: { reconnect: true },
     webSocketImpl: ws
   })
-  link.subscriptionClient.onConnected(() => {})
-  link.subscriptionClient.onDisconnected(() => {})
+
+  // Access subscription client safely
+  link.subscriptionClient.onConnected(() => { logger.info('Subscription socket connected'); })
+  link.subscriptionClient.onDisconnected(() => { logger.warn('Subscription socket disconnected'); })
   link.subscriptionClient.onError(err => {
-    console.log("connection error: " + err.message, {})
+    logger.error("connection error: " + (err && err.message ? err.message : err));
   })
 
   clientWS = new ApolloClient({ link, cache: new InMemoryCache() })
@@ -100,10 +100,10 @@ exports.connectToServer = (serverURI, subscriptionURI, _clientName, clientUpdate
     "cards": ["Panels"]
   }
   this.subscribe(gqlQueries.clientSubscription, subscription_params, clientUpdateCallback)
-
 }
 
 exports.disconnect = () => {
+  if (!client || !clientName) return;
   const QUERY = `
 mutation removeClient {
   clientDisconnect(client: "${clientName}")
@@ -112,55 +112,70 @@ mutation removeClient {
   client.mutation(QUERY)
     .toPromise()
     .then(result => {
-      // console.log(result); // { data: ... }
-    });
-  //We might have to find a way to unsubscribe from everything here...
+      logger.info('Client disconnect mutation submitted');
+    }).catch(err => logger.warn('Error during client disconnect mutation: ' + err));
+
   clientName = undefined
   currentSubscriptionsList = this.cancelSubscriptions(currentSubscriptionsList)
 }
 
 exports.cancelSubscriptions = (subscriptionsList) => {
-  // console.log("Cancelling subs",subscriptionsList)
+  // unsubscribe if available
   subscriptionsList.forEach((subscription) => {
-    // subscription._cleanup._cleanup()
-    subscription.unsubscribe()
+    try {
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+      } else if (subscription && subscription._cleanup && subscription._cleanup._cleanup) {
+        // fallback for older apollo internals (still brittle)
+        subscription._cleanup._cleanup();
+      }
+    } catch (err) {
+      logger.warn("Error cancelling subscription: " + err);
+    }
   })
-  for (let x = 0; x < subscriptionsList.length; x++) {
-    delete subscriptionsList[x]
-  }
   return []
 }
-
-
-
 
 exports.query = (QUERY, params) => {
   return client.query(QUERY, params).toPromise();
 }
 
 exports.mutate = (QUERY, params) => {
-  client.mutation(QUERY, params)
-    .toPromise()
-    .then(result => {
-      // console.log(result); // { data: ... }
-    });
+  console.log(QUERY, params)
+  try {
+    return client.mutation(QUERY, params)
+      .toPromise()
+      .then(result => {
+        // optional success handling
+        return result;
+      }).catch(err => {
+        logger.error("GraphQL mutate error: " + err);
+      });
+  } catch (err) {
+    logger.error("GraphQL mutate exception: " + err);
+  }
 }
 
 
 let currentSubscriptionsList = []
 
 exports.subscribe = (QUERY, params, callback) => {
-  // console.log(QUERY, params, callback)
   var gql = require('graphql-tag')
   let newSubscription = clientWS.subscribe({
     fetchPolicy: 'network-only',
     query: gql `${QUERY}`,
-    variables: params ///??????
+    variables: params
   }).subscribe({
-    next(data) {
-      callback(data.data)
+    next(payload) {
+      try {
+        callback(payload.data)
+      } catch (err) {
+        logger.error("Error in subscription callback: " + err);
+      }
     },
-    error(err) {}
+    error(err) {
+      logger.warn("Subscription error: " + err);
+    }
   })
   currentSubscriptionsList.push(newSubscription)
   return newSubscription

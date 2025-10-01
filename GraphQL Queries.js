@@ -1,4 +1,3 @@
-
 ////////////////
 // Mutations //
 //////////////
@@ -7,13 +6,34 @@ exports.registerClient = `mutation RegisterClient($clientName: ID!, $mobile: Boo
   clientConnect(client:$clientName, mobile:$mobile, cards:$cards)
 }`
 
-exports.setReactorHeat = `mutation ReactorHeat($reactorId: ID!,$heat: Float) {
-  addHeat(id: $reactorId, heat: $heat)
-}`
+exports.setReactorEfficiency = `mutation ReactorEfficiency($reactorId: ID!, $efficiency: Float) {
+  reactorChangeEfficiency(id: $reactorId, efficiency: $efficiency)
+}`;
 
 exports.setSystemPower = `mutation systemPowerUpdate($systemId: ID!,$power: Int!) {
   changePower(systemId: $systemId, power: $power)
 }`
+
+exports.setSystemHeat = `mutation systemHeatUpdate($systemId: ID!, $heat: Float) {
+  addHeat(id: $systemId, heat: $heat)
+}`;
+
+exports.triggerMacroAction = `mutation TriggerMacro($simulatorId: ID!, $macroId: ID!) {
+  triggerMacroAction(simulatorId: $simulatorId, macroId: $macroId)
+}`
+
+
+
+//////////////
+// Queries //
+////////////
+
+exports.macrosQuery = `query Macros {
+  macros {
+    id
+    name
+  }
+}`;
 
 
 
@@ -29,7 +49,6 @@ exports.clientSubscription = `subscription IoTClientUpdate($clientName: ID!) {
     flight {
       id
     }
-    label
     simulator {
       id
     }
@@ -52,6 +71,7 @@ exports.reactorSubscription = `subscription iotReactorUpdate($simulator: ID!) {
     name
     externalPower
     heat
+    heatRate
     id
     powerOutput
     upgraded
@@ -68,7 +88,6 @@ exports.flightSubscription = `subscription flights($flight: ID!) {
     simulators {
       id
     }
-    timelineStep
   }
 }`
 
@@ -78,6 +97,7 @@ exports.simulatorSubscription = `subscription IoTSimUpdate($simulator: ID!) {
     alertlevel
     name
     panels
+    currentTimelineStep
     ship {
       airlock
       bridgeCrew
@@ -88,7 +108,7 @@ exports.simulatorSubscription = `subscription IoTSimUpdate($simulator: ID!) {
       ramps
       selfDestructAuto
       selfDestructTime
-      velocity
+      selfDestructCode
     }
     lighting {
         action
@@ -108,9 +128,7 @@ exports.systemsSubscription = `subscription iotSystemsUpdate($simulator: ID!) {
     }
     displayName
     name
-    heat
     id
-    extra
     power {
       power
       powerLevels
@@ -127,16 +145,8 @@ exports.stealthSubscription = `subscription iotStealthUpdate($simulator: ID!) {
     changeAlert
     activated
     charge
-    damage {
-      damaged
-      destroyed
-    }
     displayName
     id
-    power {
-      power
-      powerLevels
-    }
     simulatorId
     upgraded
     upgradeName
@@ -144,3 +154,39 @@ exports.stealthSubscription = `subscription iotStealthUpdate($simulator: ID!) {
     state
   }
 }`
+
+exports.softwarePanelsSubscription = `subscription PanelsUpdate($simulatorId: ID) {
+  softwarePanelsUpdate(simulatorId: $simulatorId) {
+    id
+    name
+    cables {
+      id
+      color
+      components
+    }
+    components {
+      id
+      label
+      color
+      component
+      level
+      scale
+      x
+      y
+    }
+    connections {
+      id
+      from
+      to
+    }
+  }
+}`
+
+exports.notifySubscription = `subscription Notify($simulatorId: ID!, $station: String) {
+  notify(simulatorId: $simulatorId, station: $station) {
+    id
+    body
+    title
+  }
+}`;
+
